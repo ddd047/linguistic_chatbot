@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Chatbot Widget</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .widget-header {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .widget-header h3 {
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .widget-header .language-select {
+            margin-top: 0.5rem;
+        }
+
+        .widget-header select {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .widget-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .widget-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 0.5rem;
+            max-width: 85%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #2563eb;
+            color: white;
+        }
+
+        .message.bot .message-avatar {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        .message-content {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.75rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .message.user .message-content {
+            background: #2563eb;
+            color: white;
+            border: none;
+        }
+
+        .message-text {
+            font-size: 0.875rem;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            margin-top: 0.25rem;
+        }
+
+        .widget-input {
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            background: white;
+            flex-shrink: 0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .widget-input input {
+            flex: 1;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .widget-input input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+
+        .widget-input button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .widget-input button:hover {
+            background: #1d4ed8;
+        }
+
+        .widget-input button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 0.5rem 1rem;
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .typing-dots {
+            display: inline-flex;
+            gap: 2px;
+        }
+
+        .typing-dots span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #64748b;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 1rem;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin: 0.5rem 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-header">
+        <h3>🤖 Campus Assistant</h3>
+        <div class="language-select">
+            <select id="widgetLanguage">
+                <option value="en">English</option>
+                <option value="hi">हिंदी</option>
+                <option value="gu">ગુજરાતી</option>
+                <option value="mr">मराठी</option>
+                <option value="raj">राजस्थानी</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="widget-chat">
+        <div class="widget-messages" id="widgetMessages">
+            <div class="welcome-message">
+                <p>👋 Hello! I'm your campus assistant.</p>
+                <p>Ask me about fees, scholarships, timetables, and more!</p>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="widgetTyping">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            Assistant is typing...
+        </div>
+    </div>
+
+    <div class="widget-input">
+        <div class="input-group">
+            <input type="text" id="widgetInput" placeholder="Type your message..." autocomplete="off">
+            <button id="widgetSend">Send</button>
+        </div>
+    </div>
+
+    <script>
+        class CampusChatbotWidget {
+            constructor() {
+                this.sessionId = this.generateSessionId();
+                this.currentLanguage = 'en';
+                this.apiBaseUrl = 'http://localhost:8000';
+                this.isTyping = false;
+
+                this.messagesContainer = document.getElementById('widgetMessages');
+                this.input = document.getElementById('widgetInput');
+                this.sendButton = document.getElementById('widgetSend');
+                this.languageSelect = document.getElementById('widgetLanguage');
+                this.typingIndicator = document.getElementById('widgetTyping');
+
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.input.focus();
+            }
+
+            setupEventListeners() {
+                this.sendButton.addEventListener('click', () => this.handleSend());
+                
+                this.input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.handleSend();
+                    }
+                });
+
+                this.languageSelect.addEventListener('change', (e) => {
+                    this.currentLanguage = e.target.value;
+                    this.updateWelcomeMessage();
+                });
+            }
+
+            async handleSend() {
+                const message = this.input.value.trim();
+                if (!message || this.isTyping) return;
+
+                this.input.value = '';
+                this.sendButton.disabled = true;
+
+                // Hide welcome message on first interaction
+                const welcomeMessage = document.querySelector('.welcome-message');
+                if (welcomeMessage) {
+                    welcomeMessage.style.display = 'none';
+                }
+
+                this.addMessage('user', message);
+                this.showTyping();
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: message,
+                            session_id: this.sessionId,
+                            language: this.currentLanguage
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.hideTyping();
+                    this.addMessage('bot', data.response);
+
+                } catch (error) {
+                    this.hideTyping();
+                    this.showError('Sorry, I\'m having trouble connecting. Please try again later.');
+                    console.error('Widget error:', error);
+                } finally {
+                    this.sendButton.disabled = false;
+                    this.input.focus();
+                }
+            }
+
+            addMessage(sender, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.textContent = sender === 'user' ? '👤' : '🤖';
+
+                const content = document.createElement('div');
+                content.className = 'message-content';
+
+                const messageText = document.createElement('p');
+                messageText.className = 'message-text';
+                messageText.textContent = text;
+
+                const time = document.createElement('div');
+                time.className = 'message-time';
+                time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                content.appendChild(messageText);
+                content.appendChild(time);
+
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(content);
+
+                this.messagesContainer.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            showTyping() {
+                this.isTyping = true;
+                this.typingIndicator.style.display = 'block';
+                this.scrollToBottom();
+            }
+
+            hideTyping() {
+                this.isTyping = false;
+                this.typingIndicator.style.display = 'none';
+            }
+
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = message;
+                this.messagesContainer.appendChild(errorDiv);
+                this.scrollToBottom();
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+                }, 100);
+            }
+
+            updateWelcomeMessage() {
+                const welcomeMessage = document.querySelector('.welcome-message');
+                if (!welcomeMessage) return;
+
+                const messages = {
+                    'en': {
+                        greeting: '👋 Hello! I\'m your campus assistant.',
+                        help: 'Ask me about fees, scholarships, timetables, and more!'
+                    },
+                    'hi': {
+                        greeting: '👋 नमस्ते! मैं आपका कैंपस सहायक हूं।',
+                        help: 'मुझसे शुल्क, छात्रवृत्ति, समय सारणी और अन्य चीजों के बारे में पूछें!'
+                    },
+                    'gu': {
+                        greeting: '👋 નમસ્તે! હું તમારો કેમ્પસ સહાયક છું.',
+                        help: 'મને ફી, સ્કોલરશિપ, સમયપત્રક અને વધુ વિશે પૂછો!'
+                    },
+                    'mr': {
+                        greeting: '👋 नमस्कार! मी तुमचा कॅम्पस सहाय्यक आहे.',
+                        help: 'मला फी, शिष्यवृत्ती, वेळापत्रक आणि आणखी बरेच काही विचारा!'
+                    },
+                    'raj': {
+                        greeting: '👋 नमस्ते! मैं थारो कैंपस सहायक हूं।',
+                        help: 'मने शुल्क, छात्रवृत्ति, समय सारणी अर दूसरी चीजां रे बारे में पूछो!'
+                    }
+                };
+
+                const msg = messages[this.currentLanguage] || messages['en'];
+                welcomeMessage.innerHTML = `<p>${msg.greeting}</p><p>${msg.help}</p>`;
+            }
+
+            generateSessionId() {
+                return 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+        }
+
+        // Initialize widget when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            new CampusChatbotWidget();
+        });
+    </script>
+</body>
+</html>
