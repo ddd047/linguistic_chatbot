@@ -201,3 +201,4 @@ class ChatbotEngine:
         """Clear conversation context for a session"""
         if session_id in self.session_contexts:
             del self.session_contexts[session_id]
+
